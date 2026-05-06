@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react'
+
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { supabase } from '@/lib/supabase'
@@ -44,7 +45,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-violet-950 to-slate-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-black via-gray-950 to-black flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -52,57 +53,64 @@ export default function LoginPage() {
         className="w-full max-w-md"
       >
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-600 to-purple-600 mb-4">
-            <span className="text-white font-bold text-2xl">ML</span>
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 mb-5 shadow-lg shadow-emerald-500/20">
+            <svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 24L16 8L24 24" stroke="white" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M12 18H20" stroke="white" strokeWidth="3" strokeLinecap="round"/>
+            </svg>
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">MoneyLens</h1>
-          <p className="text-slate-400">Seu assessor financeiro pessoal</p>
+          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">Yield<span className="text-emerald-400">.app</span></h1>
+          <p className="text-gray-500 text-sm">Onde outros veem faturas, o Yield ve rendimento</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-slate-900/80 backdrop-blur-xl border border-slate-700/50 rounded-2xl p-8 shadow-2xl">
-          <h2 className="text-2xl font-semibold text-white mb-6">Entrar</h2>
+        {/* Login Card - Glassmorphism */}
+        <div className="bg-gray-900/60 backdrop-blur-xl border border-gray-800/80 rounded-2xl p-8 shadow-2xl shadow-black/50">
+          <h2 className="text-xl font-semibold text-white mb-6">Entrar na sua conta</h2>
 
           {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/30 rounded-lg text-red-400 text-sm">
+            <div className="mb-5 p-3 bg-red-500/10 border border-red-500/30 rounded-xl text-red-400 text-sm">
               {error}
             </div>
           )}
 
           <form onSubmit={handleLogin} className="space-y-5">
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <Input
                 type="email"
                 placeholder="Seu email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="pl-11"
+                className="pl-12 py-3 bg-gray-950/80 border-gray-800 text-white placeholder:text-gray-600"
                 required
               />
             </div>
 
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+              <Lock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-500" />
               <Input
                 type={showPassword ? 'text' : 'password'}
                 placeholder="Sua senha"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="pl-11 pr-11"
+                className="pl-12 pr-12 py-3 bg-gray-950/80 border-gray-800 text-white placeholder:text-gray-600"
                 required
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300"
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button 
+              type="submit" 
+              className="w-full py-3 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg shadow-emerald-500/20" 
+              disabled={loading}
+            >
               {loading ? (
                 <span className="flex items-center gap-2">
                   <span className="animate-spin">...</span>
@@ -118,9 +126,9 @@ export default function LoginPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-slate-400 text-sm">
+            <p className="text-gray-500 text-sm">
               Nao tem uma conta?{' '}
-              <Link href="/register" className="text-violet-400 hover:text-violet-300 font-medium">
+              <Link href="/register" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
                 Cadastre-se
               </Link>
             </p>
@@ -128,7 +136,7 @@ export default function LoginPage() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-slate-500 text-sm mt-8">
+        <p className="text-center text-gray-600 text-xs mt-8">
           Protegido por criptografia de nivel bancario
         </p>
       </motion.div>
