@@ -299,7 +299,7 @@ export default function CategoriesPage() {
                   }`}
                   style={
                     formData.icon === key
-                      ? { backgroundColor: formData.color + '20', color: formData.color, ringColor: formData.color }
+                      ? { backgroundColor: formData.color + '20', color: formData.color, outline: `2px solid ${formData.color}` }
                       : { color: '#9ca3af' }
                   }
                   title={key}
