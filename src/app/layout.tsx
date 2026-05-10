@@ -3,7 +3,7 @@ import './globals.css'
 import { AuthProvider } from '@/contexts/auth-context'
 
 export const metadata: Metadata = {
-  title: 'MoneyLens - Seu Assessor Financeiro',
+  title: 'Yield.app - Seu Assessor Financeiro',
   description: 'Aplicativo de gestao financeira pessoal com IA',
 }
 

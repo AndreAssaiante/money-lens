@@ -26,12 +26,12 @@ export function Header({ title, subtitle, balance }: HeaderProps) {
         )}
         <button className="p-2 hover:bg-slate-800 rounded-lg transition-colors relative">
           <Bell className="w-5 h-5 text-slate-400" />
-          <span className="absolute top-1 right-1 w-2 h-2 bg-violet-500 rounded-full" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-emerald-500 rounded-full" />
         </button>
         <button className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
           <Search className="w-5 h-5 text-slate-400" />
         </button>
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
+        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
           <User className="w-4 h-4 text-white" />
         </div>
       </div>

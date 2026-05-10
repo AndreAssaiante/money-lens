@@ -98,6 +98,60 @@ export interface MonthlyData {
   expenses: number;
 }
 
+// Financial Goals
+export type GoalCategory =
+  | 'emergency_fund'
+  | 'travel'
+  | 'real_estate'
+  | 'vehicle'
+  | 'education'
+  | 'retirement'
+  | 'other'
+
+export interface Goal {
+  id: string
+  user_id: string
+  name: string
+  description: string | null
+  category: GoalCategory
+  target_amount: number
+  current_amount: number
+  deadline: string | null
+  color: string
+  icon: string
+  is_completed: boolean
+  created_at: string
+  updated_at: string
+}
+
+export interface GoalContribution {
+  id: string
+  goal_id: string
+  user_id: string
+  amount: number
+  contribution_date: string
+  notes: string | null
+  created_at: string
+}
+
+export interface GoalFormData {
+  name: string
+  description: string
+  category: GoalCategory
+  target_amount: number
+  current_amount: number
+  deadline: string
+  color: string
+  icon: string
+}
+
+export interface GoalContributionFormData {
+  goal_id: string
+  amount: number
+  contribution_date: string
+  notes: string
+}
+
 // AI Consultant suggestions
 export interface AISuggestion {
   id: string;

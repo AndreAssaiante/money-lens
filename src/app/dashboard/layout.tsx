@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/auth-context'
 import { useRouter } from 'next/navigation'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
 import { motion } from 'framer-motion'
 
@@ -13,6 +13,7 @@ export default function DashboardLayout({
 }) {
   const { user, loading } = useAuth()
   const router = useRouter()
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
 
   useEffect(() => {
     if (!loading && !user) {
@@ -22,8 +23,8 @@ export default function DashboardLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full" />
+      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
       </div>
     )
   }
@@ -33,13 +34,12 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-900">
-      <Sidebar />
+    <div className="min-h-screen bg-gray-950">
+      <Sidebar onCollapse={setSidebarCollapsed} />
       <motion.main
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.3 }}
-        className="ml-64 min-h-screen p-6"
+        animate={{ marginLeft: sidebarCollapsed ? 80 : 256 }}
+        transition={{ duration: 0.2 }}
+        className="min-h-screen"
       >
         {children}
       </motion.main>

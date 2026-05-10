@@ -1,5 +1,5 @@
 {
-  "name": "money-lens",
+  "name": "yield-app",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.36.3",
     "@supabase/supabase-js": "^2.105.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",

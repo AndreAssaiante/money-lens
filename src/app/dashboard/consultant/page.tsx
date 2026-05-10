@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { useAuth } from '@/contexts/auth-context'
 import { Header } from '@/components/layout/header'
 import { Card } from '@/components/ui/card'
@@ -9,415 +9,365 @@ import { Button } from '@/components/ui/button'
 import { supabase } from '@/lib/supabase'
 import { formatCurrency, formatMonth, getCurrentMonth, getCurrentYear } from '@/lib/utils'
 import {
-  Lightbulb,
+  Sparkles,
+  RefreshCw,
   TrendingDown,
   AlertTriangle,
-  CheckCircle,
-  ArrowRight,
-  Sparkles,
-  Zap,
   Target,
   PiggyBank,
+  Lightbulb,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
-import { Transaction, Income, Category, AISuggestion } from '@/types'
+import { Transaction, Income, Category, Goal } from '@/types'
 import { motion } from 'framer-motion'
+import type { ConsultantPayload } from '@/app/api/consultant/route'
+
+// Renderiza Markdown simples (negrito, itálico, listas, títulos)
+function MarkdownBlock({ text }: { text: string }) {
+  const lines = text.split('\n')
+  return (
+    <div className="space-y-2 text-gray-300 text-sm leading-relaxed">
+      {lines.map((line, i) => {
+        if (!line.trim()) return <div key={i} className="h-1" />
+
+        // ## Título
+        if (line.startsWith('## ')) {
+          return (
+            <h3 key={i} className="text-white font-semibold text-base mt-4 mb-1 flex items-center gap-2">
+              {line.replace(/^## /, '')}
+            </h3>
+          )
+        }
+        // ### Subtítulo
+        if (line.startsWith('### ')) {
+          return (
+            <h4 key={i} className="text-gray-200 font-medium mt-3 mb-0.5">
+              {line.replace(/^### /, '')}
+            </h4>
+          )
+        }
+        // Item de lista
+        if (line.startsWith('- ') || line.startsWith('* ')) {
+          const content = line.replace(/^[-*] /, '').replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+          return (
+            <div key={i} className="flex items-start gap-2 pl-2">
+              <span className="text-emerald-400 mt-1 flex-shrink-0">•</span>
+              <span dangerouslySetInnerHTML={{ __html: content }} />
+            </div>
+          )
+        }
+        // Linha normal com negrito
+        const formatted = line.replace(/\*\*(.*?)\*\*/g, '<strong class="text-white">$1</strong>')
+        return <p key={i} dangerouslySetInnerHTML={{ __html: formatted }} />
+      })}
+    </div>
+  )
+}
 
 export default function ConsultantPage() {
   const { user } = useAuth()
   const [loading, setLoading] = useState(true)
+  const [analyzing, setAnalyzing] = useState(false)
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [incomes, setIncomes] = useState<Income[]>([])
   const [categories, setCategories] = useState<Category[]>([])
-  const [suggestions, setSuggestions] = useState<AISuggestion[]>([])
-
-  const currentMonth = getCurrentMonth()
-  const currentYear = getCurrentYear()
+  const [goals, setGoals] = useState<Goal[]>([])
+  const [analysis, setAnalysis] = useState<string>('')
+  const [analysisError, setAnalysisError] = useState<string>('')
+  const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
+  const [currentYear, setCurrentYear] = useState(getCurrentYear())
 
   useEffect(() => {
-    if (user) {
-      fetchData()
-    }
-  }, [user])
+    if (user) fetchData()
+  }, [user, currentMonth, currentYear])
 
   const fetchData = async () => {
     if (!user) return
-
     setLoading(true)
+    setAnalysis('')
+    setAnalysisError('')
     try {
-      // Fetch categories
-      const { data: categoriesData } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('user_id', user.id)
-
-      if (categoriesData) {
-        setCategories(categoriesData)
-      }
-
-      // Fetch transactions for current month
       const startDate = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`
       const endDate = new Date(currentYear, currentMonth, 0).toISOString().split('T')[0]
 
-      const { data: transactionsData } = await supabase
-        .from('transactions')
-        .select('*, category:categories(*)')
-        .eq('user_id', user.id)
-        .gte('transaction_date', startDate)
-        .lte('transaction_date', endDate)
+      const [
+        { data: catData },
+        { data: txData },
+        { data: incData },
+        { data: goalsData },
+      ] = await Promise.all([
+        supabase.from('categories').select('*').eq('user_id', user.id),
+        supabase.from('transactions').select('*, category:categories(*)').eq('user_id', user.id).gte('transaction_date', startDate).lte('transaction_date', endDate),
+        supabase.from('incomes').select('*').eq('user_id', user.id).eq('month', currentMonth).eq('year', currentYear),
+        supabase.from('goals').select('*').eq('user_id', user.id),
+      ])
 
-      if (transactionsData) {
-        setTransactions(transactionsData)
-      }
-
-      // Fetch incomes
-      const { data: incomesData } = await supabase
-        .from('incomes')
-        .select('*')
-        .eq('user_id', user.id)
-        .eq('month', currentMonth)
-        .eq('year', currentYear)
-
-      if (incomesData) {
-        setIncomes(incomesData)
-      }
-
-      // Generate suggestions
-      generateSuggestions(transactionsData || [], incomesData || [], categoriesData || [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
+      setCategories(catData ?? [])
+      setTransactions(txData ?? [])
+      setIncomes(incData ?? [])
+      setGoals(goalsData ?? [])
+    } catch (err) {
+      console.error('Erro ao buscar dados:', err)
     } finally {
       setLoading(false)
     }
   }
 
-  const generateSuggestions = (
-    transactions: Transaction[],
-    incomes: Income[],
-    categories: Category[]
-  ) => {
-    const newSuggestions: AISuggestion[] = []
-    const totalIncome = incomes.reduce((sum, i) => sum + i.amount, 0)
-    const expenses = transactions.filter(t => t.is_expense)
+  const totalIncome = useMemo(() => incomes.reduce((s, i) => s + i.amount, 0), [incomes])
+  const expenses = useMemo(() => transactions.filter(t => t.is_expense), [transactions])
+  const totalExpenses = useMemo(() => expenses.reduce((s, t) => s + t.amount, 0), [expenses])
+  const balance = totalIncome - totalExpenses
 
-    // Calculate expenses by category
-    const expensesByCategory = new Map<string, { total: number; category: Category }>()
+  const expensesByCategory = useMemo(() => {
+    const map = new Map<string, { name: string; total: number }>()
     expenses.forEach(t => {
-      if (t.category_id && t.category) {
-        const current = expensesByCategory.get(t.category_id) || { total: 0, category: t.category }
-        current.total += t.amount
-        expensesByCategory.set(t.category_id, current)
-      }
+      if (!t.category_id || !t.category) return
+      const cur = map.get(t.category_id) ?? { name: t.category.name, total: 0 }
+      cur.total += t.amount
+      map.set(t.category_id, cur)
     })
+    return Array.from(map.values())
+      .map(c => ({ ...c, percentage: totalExpenses > 0 ? (c.total / totalExpenses) * 100 : 0 }))
+      .sort((a, b) => b.total - a.total)
+  }, [expenses, totalExpenses])
 
-    // Check for bottlenecks (>30% in one category)
-    expensesByCategory.forEach(({ total, category }) => {
-      if (totalIncome > 0 && (total / totalIncome) > 0.3) {
-        newSuggestions.push({
-          id: `bottleneck-${category.id}`,
-          category: category.name,
-          icon: category.icon,
-          title: `Gargalo em ${category.name}`,
-          description: `Voce gastou ${formatCurrency(total)} (${((total / totalIncome) * 100).toFixed(0)}%) em ${category.name}, mais do que o ideal de 30% da sua renda. Considere reduzir esses gastos.`,
-          potentialSavings: total * 0.15,
-          severity: (total / totalIncome) > 0.5 ? 'high' : 'medium',
-        })
+  const handleAnalyze = async () => {
+    setAnalyzing(true)
+    setAnalysisError('')
+    try {
+      const payload: ConsultantPayload = {
+        totalIncome,
+        totalExpenses,
+        balance,
+        expensesByCategory,
+        topCategories: expensesByCategory.slice(0, 5),
+        goals: goals.map(g => ({
+          name: g.name,
+          target_amount: g.target_amount,
+          current_amount: g.current_amount,
+          deadline: g.deadline,
+        })),
+        month: formatMonth(currentMonth, currentYear),
       }
-    })
 
-    // Find recurring expenses (mock logic)
-    const descriptionCounts = new Map<string, number>()
-    expenses.forEach(t => {
-      const count = descriptionCounts.get(t.description) || 0
-      descriptionCounts.set(t.description, count + 1)
-    })
-
-    descriptionCounts.forEach((count, description) => {
-      if (count >= 2) {
-        const expense = expenses.find(e => e.description === description)
-        newSuggestions.push({
-          id: `recurring-${description}`,
-          category: expense?.category?.name || 'Outros',
-          icon: 'refresh',
-          title: `Gasto Recorrente: ${description}`,
-          description: `Esta despesa aparece ${count} vezes este mes. Considere cancelar ou renegociar se nao for essencial.`,
-          potentialSavings: (expense?.amount || 0) * count * 0.5,
-          severity: 'medium',
-        })
-      }
-    })
-
-    // High spending categories
-    const sortedCategories = Array.from(expensesByCategory.entries())
-      .sort((a, b) => b[1].total - a[1].total)
-
-    if (sortedCategories.length > 0) {
-      const [catId, { total, category }] = sortedCategories[0]
-      if (totalIncome > 0) {
-        newSuggestions.push({
-          id: `top-spending-${catId}`,
-          category: category.name,
-          icon: category.icon,
-          title: `Maior Gasto: ${category.name}`,
-          description: `${category.name} e sua maior despesa este mes, totalizando ${formatCurrency(total)}. Analise se ha gastos desnecessarios.`,
-          potentialSavings: total * 0.1,
-          severity: 'low',
-        })
-      }
-    }
-
-    // General tips if no specific suggestions
-    if (newSuggestions.length === 0) {
-      newSuggestions.push({
-        id: 'general-tip-1',
-        category: 'Geral',
-        icon: 'star',
-        title: 'Parabens! Seus gastos estao equilibrados',
-        description: 'Voce nao tem nenhum gargalo significativo este mes. Continue assim!',
-        potentialSavings: 0,
-        severity: 'low',
+      const res = await fetch('/api/consultant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
       })
-    }
 
-    // Add emergency fund suggestion
-    if (totalIncome > 0) {
-      const totalExpenses = expenses.reduce((sum, t) => sum + t.amount, 0)
-      const balance = totalIncome - totalExpenses
-
-      if (balance > 0) {
-        newSuggestions.push({
-          id: 'savings-tip',
-          category: 'Poupanca',
-          icon: 'piggy-bank',
-          title: 'Reserve parte do seu saldo',
-          description: `Voce tem ${formatCurrency(balance)} disponivel. Considere poupar pelo menos 20% para emergencias.`,
-          potentialSavings: balance * 0.2,
-          severity: 'low',
-        })
-      }
-    }
-
-    setSuggestions(newSuggestions)
-  }
-
-  const getSeverityIcon = (severity: string) => {
-    switch (severity) {
-      case 'high':
-        return <AlertTriangle className="w-5 h-5 text-red-400" />
-      case 'medium':
-        return <AlertTriangle className="w-5 h-5 text-amber-400" />
-      default:
-        return <CheckCircle className="w-5 h-5 text-emerald-400" />
+      if (!res.ok) throw new Error('Falha na API')
+      const data = await res.json()
+      setAnalysis(data.analysis ?? '')
+    } catch (err) {
+      setAnalysisError('Não foi possível gerar a análise. Verifique a chave ANTHROPIC_API_KEY no .env.local.')
+    } finally {
+      setAnalyzing(false)
     }
   }
 
-  const getSeverityColor = (severity: string) => {
-    switch (severity) {
-      case 'high':
-        return 'border-red-500/30 bg-red-500/10'
-      case 'medium':
-        return 'border-amber-500/30 bg-amber-500/10'
-      default:
-        return 'border-emerald-500/30 bg-emerald-500/10'
-    }
+  const navigateMonth = (dir: -1 | 1) => {
+    let m = currentMonth + dir
+    let y = currentYear
+    if (m < 1) { m = 12; y -= 1 }
+    if (m > 12) { m = 1; y += 1 }
+    setCurrentMonth(m)
+    setCurrentYear(y)
   }
-
-  const totalPotentialSavings = suggestions.reduce(
-    (sum, s) => sum + (s.severity !== 'low' ? s.potentialSavings : 0),
-    0
-  )
 
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
       </div>
     )
   }
 
   return (
     <div className="p-6">
-      <Header
-        title="Consultor IA"
-        subtitle={formatMonth(currentMonth, currentYear)}
-      />
+      <Header title="Consultor IA" subtitle={formatMonth(currentMonth, currentYear)} />
 
-      {/* Summary Card */}
-      <Card variant="gradient" className="mt-6 border-violet-500/30">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-xl bg-gradient-to-br from-violet-600 to-purple-600 flex items-center justify-center">
-              <Sparkles className="w-7 h-7 text-white" />
-            </div>
-            <div>
-              <h2 className="text-white text-xl font-semibold">Analise Inteligente</h2>
-              <p className="text-slate-400 text-sm mt-1">
-                Analise dos seus gastos do mes com suggestions personalizadas
-              </p>
-            </div>
-          </div>
-          {totalPotentialSavings > 0 && (
-            <div className="text-right">
-              <p className="text-slate-400 text-sm">Economia Potencial</p>
-              <p className="text-2xl font-bold text-emerald-400">
-                {formatCurrency(totalPotentialSavings)}
-              </p>
-            </div>
-          )}
-        </div>
-      </Card>
-
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-violet-500/20 flex items-center justify-center">
-              <Lightbulb className="w-5 h-5 text-violet-400" />
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs">Sugestoes</p>
-              <p className="text-white font-semibold text-lg">{suggestions.length}</p>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-red-500/20 flex items-center justify-center">
-              <AlertTriangle className="w-5 h-5 text-red-400" />
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs">Alertas</p>
-              <p className="text-white font-semibold text-lg">
-                {suggestions.filter(s => s.severity === 'high').length}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
-              <Zap className="w-5 h-5 text-amber-400" />
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs">Oportunidades</p>
-              <p className="text-white font-semibold text-lg">
-                {suggestions.filter(s => s.severity === 'medium').length}
-              </p>
-            </div>
-          </div>
-        </Card>
-
-        <Card>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-              <Target className="w-5 h-5 text-emerald-400" />
-            </div>
-            <div>
-              <p className="text-slate-400 text-xs">Economia Total</p>
-              <p className="text-white font-semibold text-lg">
-                {formatCurrency(totalPotentialSavings)}
-              </p>
-            </div>
-          </div>
-        </Card>
+      {/* Navegação de mês */}
+      <div className="flex items-center gap-3 mt-6 mb-2">
+        <button onClick={() => navigateMonth(-1)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
+          <ChevronLeft className="w-4 h-4 text-gray-400" />
+        </button>
+        <span className="text-white font-medium">{formatMonth(currentMonth, currentYear)}</span>
+        <button onClick={() => navigateMonth(1)} className="p-2 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors">
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+        </button>
       </div>
 
-      {/* Suggestions List */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="mt-6 space-y-4"
-      >
-        <h3 className="text-white font-semibold flex items-center gap-2">
-          <Lightbulb className="w-5 h-5 text-violet-400" />
-          Sugestoes Personalizadas
-        </h3>
-
-        {suggestions.map((suggestion, index) => (
-          <motion.div
-            key={suggestion.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className={getSeverityColor(suggestion.severity)}>
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-xl bg-slate-800 flex items-center justify-center flex-shrink-0">
-                  {getSeverityIcon(suggestion.severity)}
-                </div>
-                <div className="flex-1">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <h4 className="text-white font-semibold">{suggestion.title}</h4>
-                      <Badge
-                        variant={
-                          suggestion.severity === 'high'
-                            ? 'danger'
-                            : suggestion.severity === 'medium'
-                            ? 'warning'
-                            : 'success'
-                        }
-                      >
-                        {suggestion.severity === 'high'
-                          ? 'Critico'
-                          : suggestion.severity === 'medium'
-                          ? 'Atencao'
-                          : 'OK'}
-                      </Badge>
-                    </div>
-                    {suggestion.potentialSavings > 0 && (
-                      <p className="text-emerald-400 text-sm font-medium">
-                        Economia: {formatCurrency(suggestion.potentialSavings)}
-                      </p>
-                    )}
-                  </div>
-                  <p className="text-slate-300 text-sm leading-relaxed">
-                    {suggestion.description}
-                  </p>
-                  <div className="mt-3 flex items-center gap-2">
-                    <span className="text-slate-500 text-xs">
-                      Categoria: {suggestion.category}
-                    </span>
-                  </div>
+      {/* Resumo do mês */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+        {[
+          { label: 'Receitas', value: formatCurrency(totalIncome), color: 'text-emerald-400', bg: 'bg-emerald-500/20', icon: <TrendingDown className="w-5 h-5 text-emerald-400 rotate-180" /> },
+          { label: 'Despesas', value: formatCurrency(totalExpenses), color: 'text-red-400', bg: 'bg-red-500/20', icon: <TrendingDown className="w-5 h-5 text-red-400" /> },
+          { label: 'Saldo', value: formatCurrency(balance), color: balance >= 0 ? 'text-cyan-400' : 'text-red-400', bg: balance >= 0 ? 'bg-cyan-500/20' : 'bg-red-500/20', icon: <PiggyBank className="w-5 h-5 text-cyan-400" /> },
+          { label: 'Taxa de Poupança', value: totalIncome > 0 ? `${((balance / totalIncome) * 100).toFixed(0)}%` : '—', color: 'text-amber-400', bg: 'bg-amber-500/20', icon: <Target className="w-5 h-5 text-amber-400" /> },
+        ].map((s, i) => (
+          <motion.div key={i} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.07 }}>
+            <Card variant="gradient">
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-lg ${s.bg} flex items-center justify-center flex-shrink-0`}>{s.icon}</div>
+                <div>
+                  <p className="text-gray-400 text-xs">{s.label}</p>
+                  <p className={`font-bold text-lg ${s.color}`}>{s.value}</p>
                 </div>
               </div>
             </Card>
           </motion.div>
         ))}
-      </motion.div>
+      </div>
 
-      {/* Tips Section */}
+      {/* Gastos por categoria */}
+      {expensesByCategory.length > 0 && (
+        <Card className="mt-6">
+          <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+            <Lightbulb className="w-5 h-5 text-amber-400" />
+            Distribuição de Gastos
+          </h3>
+          <div className="space-y-3">
+            {expensesByCategory.slice(0, 8).map((cat, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="text-gray-500 text-xs w-4">{i + 1}</span>
+                <div className="flex-1">
+                  <div className="flex justify-between mb-1">
+                    <span className="text-gray-300 text-sm">{cat.name}</span>
+                    <span className="text-gray-400 text-sm">{formatCurrency(cat.total)}</span>
+                  </div>
+                  <div className="h-1.5 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-cyan-500 transition-all"
+                      style={{ width: `${cat.percentage}%` }}
+                    />
+                  </div>
+                </div>
+                <span className="text-gray-500 text-xs w-10 text-right">{cat.percentage.toFixed(0)}%</span>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Análise IA */}
+      <Card variant="gradient" className="mt-6 border-emerald-500/30">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-white font-semibold">Análise com IA</h2>
+              <p className="text-gray-400 text-xs">Claude analisa seus dados e gera recomendações personalizadas</p>
+            </div>
+          </div>
+          <Button
+            onClick={handleAnalyze}
+            disabled={analyzing}
+            size="sm"
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${analyzing ? 'animate-spin' : ''}`} />
+            {analyzing ? 'Analisando...' : analysis ? 'Reanalisar' : 'Analisar'}
+          </Button>
+        </div>
+
+        {!analysis && !analyzing && !analysisError && (
+          <div className="text-center py-10">
+            <Sparkles className="w-10 h-10 text-gray-600 mx-auto mb-3" />
+            <p className="text-gray-500 text-sm">
+              Clique em <span className="text-emerald-400 font-medium">Analisar</span> para receber uma análise completa dos seus gastos deste mês com recomendações personalizadas.
+            </p>
+          </div>
+        )}
+
+        {analyzing && (
+          <div className="flex flex-col items-center py-10 gap-3">
+            <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
+            <p className="text-gray-400 text-sm">Analisando seus dados financeiros...</p>
+          </div>
+        )}
+
+        {analysisError && (
+          <div className="bg-red-500/10 border border-red-500/30 rounded-xl p-4 mt-2">
+            <div className="flex items-center gap-2 mb-1">
+              <AlertTriangle className="w-4 h-4 text-red-400" />
+              <p className="text-red-400 text-sm font-medium">Erro na análise</p>
+            </div>
+            <p className="text-gray-400 text-sm">{analysisError}</p>
+          </div>
+        )}
+
+        {analysis && !analyzing && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-2 border-t border-gray-700 pt-4"
+          >
+            <MarkdownBlock text={analysis} />
+          </motion.div>
+        )}
+      </Card>
+
+      {/* Metas */}
+      {goals.length > 0 && (
+        <Card className="mt-6">
+          <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+            <Target className="w-5 h-5 text-cyan-400" />
+            Progresso das Metas
+          </h3>
+          <div className="space-y-4">
+            {goals.filter(g => !g.is_completed).map(g => {
+              const pct = Math.min(100, Math.round((g.current_amount / g.target_amount) * 100))
+              return (
+                <div key={g.id}>
+                  <div className="flex justify-between mb-1.5">
+                    <div className="flex items-center gap-2">
+                      <span>{g.icon}</span>
+                      <span className="text-gray-300 text-sm">{g.name}</span>
+                    </div>
+                    <span className="text-gray-400 text-sm">{pct}%</span>
+                  </div>
+                  <div className="h-2 bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-700"
+                      style={{ width: `${pct}%`, backgroundColor: g.color }}
+                    />
+                  </div>
+                  <div className="flex justify-between mt-1">
+                    <span className="text-gray-500 text-xs">{formatCurrency(g.current_amount)}</span>
+                    <span className="text-gray-500 text-xs">{formatCurrency(g.target_amount)}</span>
+                  </div>
+                </div>
+              )
+            })}
+            {goals.every(g => g.is_completed) && (
+              <p className="text-emerald-400 text-sm text-center py-4">🎉 Todas as metas concluídas!</p>
+            )}
+          </div>
+        </Card>
+      )}
+
+      {/* Dicas gerais */}
       <Card className="mt-6">
         <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
           <PiggyBank className="w-5 h-5 text-amber-400" />
-          Dicas Gerais de Economia
+          Princípios Financeiros
         </h3>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="bg-slate-800/50 rounded-lg p-4">
-            <h4 className="text-white font-medium mb-2">Regra 50/30/20</h4>
-            <p className="text-slate-400 text-sm">
-              Destine 50% para necessidades (moradia, alimentacao), 30% para desejos (lazer) e 20% para poupanca e investimentos.
-            </p>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-4">
-            <h4 className="text-white font-medium mb-2">Antecipe Vencimentos</h4>
-            <p className="text-slate-400 text-sm">
-              Pagar contas antes do vencimento pode evitar juros e multas, alem de liberar espaco no orcamento.
-            </p>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-4">
-            <h4 className="text-white font-medium mb-2">Revise Assinaturas</h4>
-            <p className="text-slate-400 text-sm">
-              Cancele assinaturas que nao usa mais. Streaming, apps e magazines podem estar custando mais do que voce percebe.
-            </p>
-          </div>
-          <div className="bg-slate-800/50 rounded-lg p-4">
-            <h4 className="text-white font-medium mb-2">Fundo de Emergencia</h4>
-            <p className="text-slate-400 text-sm">
-              Mantenha pelo menos 3-6 meses de despesas em investimentos de alta liquidez para emergencias.
-            </p>
-          </div>
+          {[
+            { title: 'Regra 50/30/20', body: '50% para necessidades (moradia, alimentação), 30% para desejos (lazer) e 20% para poupança e investimentos.' },
+            { title: 'Fundo de Emergência', body: 'Mantenha 3 a 6 meses de despesas em aplicações de alta liquidez antes de investir em outras categorias.' },
+            { title: 'Pague-se Primeiro', body: 'Separe a parcela de poupança logo que receber, antes de gastar. Trate como uma despesa obrigatória.' },
+            { title: 'Revise Assinaturas', body: 'Cancele serviços que não usa. Streaming, apps e planos desnecessários podem custar mais do que parecem ao final do ano.' },
+          ].map((tip, i) => (
+            <div key={i} className="bg-gray-800/50 rounded-lg p-4">
+              <h4 className="text-white font-medium mb-2 text-sm">{tip.title}</h4>
+              <p className="text-gray-400 text-xs leading-relaxed">{tip.body}</p>
+            </div>
+          ))}
         </div>
       </Card>
     </div>

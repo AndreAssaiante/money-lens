@@ -19,6 +19,9 @@ import {
   Wallet,
   PiggyBank,
   CreditCard,
+  Target,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import { CategoryExpense, MonthlyData, Transaction, Income, Category } from '@/types'
 import Link from 'next/link'
@@ -30,6 +33,7 @@ export default function DashboardPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([])
   const [incomes, setIncomes] = useState<Income[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [totalInvestments, setTotalInvestments] = useState(0)
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([])
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth())
   const [currentYear, setCurrentYear] = useState(getCurrentYear())
@@ -53,6 +57,16 @@ export default function DashboardPage() {
 
       if (categoriesData) {
         setCategories(categoriesData)
+      }
+
+      // Fetch investments total
+      const { data: investmentsData } = await supabase
+        .from('investments')
+        .select('value')
+        .eq('user_id', user.id)
+
+      if (investmentsData) {
+        setTotalInvestments(investmentsData.reduce((sum, inv) => sum + inv.value, 0))
       }
 
       // Fetch transactions for current month
@@ -167,10 +181,21 @@ export default function DashboardPage() {
 
   const recentTransactions = transactions.slice(0, 5)
 
+  const navigateMonth = (dir: -1 | 1) => {
+    let m = currentMonth + dir
+    let y = currentYear
+    if (m < 1) { m = 12; y -= 1 }
+    if (m > 12) { m = 1; y += 1 }
+    setCurrentMonth(m)
+    setCurrentYear(y)
+  }
+
+  const isCurrentMonth = currentMonth === getCurrentMonth() && currentYear === getCurrentYear()
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-violet-500 border-t-transparent rounded-full" />
+        <div className="animate-spin w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full" />
       </div>
     )
   }
@@ -182,6 +207,34 @@ export default function DashboardPage() {
         subtitle={formatMonth(currentMonth, currentYear)}
         balance={balance}
       />
+
+      {/* Navegação mensal */}
+      <div className="flex items-center gap-2 mt-5">
+        <button
+          onClick={() => navigateMonth(-1)}
+          className="p-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors"
+        >
+          <ChevronLeft className="w-4 h-4 text-gray-400" />
+        </button>
+        <span className="text-white font-semibold text-sm min-w-[140px] text-center select-none">
+          {formatMonth(currentMonth, currentYear)}
+        </span>
+        <button
+          onClick={() => navigateMonth(1)}
+          disabled={isCurrentMonth}
+          className="p-2 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <ChevronRight className="w-4 h-4 text-gray-400" />
+        </button>
+        {!isCurrentMonth && (
+          <button
+            onClick={() => { setCurrentMonth(getCurrentMonth()); setCurrentYear(getCurrentYear()) }}
+            className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-500/30 text-emerald-400 text-xs rounded-lg transition-colors"
+          >
+            Mês atual
+          </button>
+        )}
+      </div>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
@@ -230,16 +283,16 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
         >
-          <Card variant="gradient" className="border-violet-500/20">
+          <Card variant="gradient" className="border-cyan-500/20">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm">Saldo do Mes</p>
-                <p className={`text-2xl font-bold mt-1 ${balance >= 0 ? 'text-violet-400' : 'text-red-400'}`}>
+                <p className={`text-2xl font-bold mt-1 ${balance >= 0 ? 'text-cyan-400' : 'text-red-400'}`}>
                   {formatCurrency(balance)}
                 </p>
               </div>
-              <div className="w-12 h-12 rounded-xl bg-violet-500/20 flex items-center justify-center">
-                <Wallet className="w-6 h-6 text-violet-400" />
+              <div className="w-12 h-12 rounded-xl bg-cyan-500/20 flex items-center justify-center">
+                <Wallet className="w-6 h-6 text-cyan-400" />
               </div>
             </div>
           </Card>
@@ -255,7 +308,7 @@ export default function DashboardPage() {
               <div>
                 <p className="text-slate-400 text-sm">Investimentos</p>
                 <p className="text-2xl font-bold text-amber-400 mt-1">
-                  {formatCurrency(0)}
+                  {formatCurrency(totalInvestments)}
                 </p>
               </div>
               <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
@@ -307,7 +360,7 @@ export default function DashboardPage() {
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold">Despesas por Categoria</h3>
-              <Link href="/transactions" className="text-violet-400 text-sm hover:underline">
+              <Link href="/dashboard/transactions" className="text-violet-400 text-sm hover:underline">
                 Ver todas
               </Link>
             </div>
@@ -339,7 +392,7 @@ export default function DashboardPage() {
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold">Transacoes Recentes</h3>
-              <Link href="/transactions" className="text-violet-400 text-sm hover:underline">
+              <Link href="/dashboard/transactions" className="text-violet-400 text-sm hover:underline">
                 Ver todas
               </Link>
             </div>
@@ -423,26 +476,32 @@ export default function DashboardPage() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6">
-        <Link href="/transactions?action=add">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-6">
+        <Link href="/dashboard/transactions?action=add">
           <Button variant="secondary" className="w-full h-20 flex-col gap-2">
             <ArrowUpRight className="w-5 h-5" />
             <span className="text-xs">Nova Transacao</span>
           </Button>
         </Link>
-        <Link href="/invoices">
+        <Link href="/dashboard/invoices">
           <Button variant="secondary" className="w-full h-20 flex-col gap-2">
             <CreditCard className="w-5 h-5" />
             <span className="text-xs">Upload Fatura</span>
           </Button>
         </Link>
-        <Link href="/incomes">
+        <Link href="/dashboard/incomes">
           <Button variant="secondary" className="w-full h-20 flex-col gap-2">
             <TrendingUp className="w-5 h-5" />
             <span className="text-xs">Registrar Renda</span>
           </Button>
         </Link>
-        <Link href="/consultant">
+        <Link href="/dashboard/goals">
+          <Button variant="secondary" className="w-full h-20 flex-col gap-2">
+            <Target className="w-5 h-5" />
+            <span className="text-xs">Minhas Metas</span>
+          </Button>
+        </Link>
+        <Link href="/dashboard/consultant">
           <Button variant="secondary" className="w-full h-20 flex-col gap-2">
             <AlertTriangle className="w-5 h-5" />
             <span className="text-xs">Consultor IA</span>
