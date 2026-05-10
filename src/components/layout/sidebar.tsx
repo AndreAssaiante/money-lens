@@ -74,7 +74,7 @@ export function Sidebar({ onCollapse }: SidebarProps) {
               </svg>
             </div>
             <span className="text-white font-bold text-lg tracking-tight">
-              Yield<span className="text-emerald-400">.app</span>
+              home-yield<span className="text-emerald-400">.app</span>
             </span>
           </Link>
         ) : (

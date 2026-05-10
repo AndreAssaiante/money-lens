@@ -1,8 +1,8 @@
-# Yield.app — Assessor Financeiro Pessoal
+# home-yield.app — Assessor Financeiro Pessoal
 
 <div align="center">
 
-![Yield.app](https://img.shields.io/badge/Yield.app-Assessor%20Financeiro-10b981?style=for-the-badge)
+![home-yield.app](https://img.shields.io/badge/home-yield.app-Assessor%20Financeiro-10b981?style=for-the-badge)
 
 **Onde outros veem faturas, o Yield vê rendimento.**
 

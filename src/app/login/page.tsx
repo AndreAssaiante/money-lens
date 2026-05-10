@@ -60,8 +60,8 @@ export default function LoginPage() {
               <path d="M12 18H20" stroke="white" strokeWidth="3" strokeLinecap="round"/>
             </svg>
           </div>
-          <h1 className="text-5xl font-bold text-white mb-3 tracking-tight">Yield<span className="text-emerald-400">.app</span></h1>
-          <p className="text-gray-500 text-base">Onde outros veem faturas, o Yield ve rendimento</p>
+          <h1 className="text-5xl font-bold text-white mb-3 tracking-tight">home-yield<span className="text-emerald-400">.app</span></h1>
+          <p className="text-gray-500 text-base">Onde outros veem faturas, o home-yield vê rendimento</p>
         </div>
 
         {/* Login Card - Glassmorphism com espaçamento generoso */}
