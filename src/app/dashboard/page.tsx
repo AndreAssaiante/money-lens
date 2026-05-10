@@ -24,6 +24,7 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { CategoryExpense, MonthlyData, Transaction, Income, Category } from '@/types'
+import { CategoryIcon } from '@/components/ui/category-icon'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 
@@ -360,7 +361,7 @@ export default function DashboardPage() {
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold">Despesas por Categoria</h3>
-              <Link href="/dashboard/transactions" className="text-violet-400 text-sm hover:underline">
+              <Link href="/dashboard/transactions" className="text-emerald-400 text-sm hover:underline">
                 Ver todas
               </Link>
             </div>
@@ -392,7 +393,7 @@ export default function DashboardPage() {
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-white font-semibold">Transacoes Recentes</h3>
-              <Link href="/dashboard/transactions" className="text-violet-400 text-sm hover:underline">
+              <Link href="/dashboard/transactions" className="text-emerald-400 text-sm hover:underline">
                 Ver todas
               </Link>
             </div>
@@ -406,12 +407,11 @@ export default function DashboardPage() {
                     className="flex items-center justify-between p-3 bg-slate-800/50 rounded-lg"
                   >
                     <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: (transaction.category?.color || '#666') + '20' }}
-                      >
-                        <span className="text-lg">{transaction.category?.icon || '?'}</span>
-                      </div>
+                      <CategoryIcon
+                        icon={transaction.category?.icon || 'more-horizontal'}
+                        color={transaction.category?.color || '#64748b'}
+                        size="sm"
+                      />
                       <div>
                         <p className="text-white text-sm font-medium">{transaction.description}</p>
                         <p className="text-slate-400 text-xs">
@@ -444,13 +444,8 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {expensesByCategory.slice(0, 5).map((cat, index) => (
                   <div key={cat.categoryId} className="flex items-center gap-3">
-                    <span className="text-slate-500 w-5">{index + 1}</span>
-                    <div
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: cat.categoryColor + '20' }}
-                    >
-                      <span className="text-sm">{cat.categoryIcon}</span>
-                    </div>
+                    <span className="text-gray-500 text-xs w-4 text-center">{index + 1}</span>
+                    <CategoryIcon icon={cat.categoryIcon} color={cat.categoryColor} size="xs" />
                     <div className="flex-1">
                       <p className="text-white text-sm font-medium">{cat.categoryName}</p>
                       <div className="flex items-center gap-2 mt-1">

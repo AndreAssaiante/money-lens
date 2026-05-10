@@ -4,6 +4,7 @@ import { useAuth } from '@/contexts/auth-context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { Sidebar } from '@/components/layout/sidebar'
+import { AIWidget } from '@/components/ui/ai-widget'
 import { motion } from 'framer-motion'
 
 export default function DashboardLayout({
@@ -43,6 +44,7 @@ export default function DashboardLayout({
       >
         {children}
       </motion.main>
+      <AIWidget />
     </div>
   )
 }
